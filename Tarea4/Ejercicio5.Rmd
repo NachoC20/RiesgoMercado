@@ -1,0 +1,82 @@
+---
+title: "Ejercicio5"
+author: "Ignacio Castillo Suarez"
+date: "18/1/2022"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Ejercicio 5
+
+Calcular la correlaci ́on de activos, probabilidad media de incumplimiento y probabilidad conjunta de in-
+cumplmiento por el m ́etodo de momento de la informaci ́on del archivo “Hist ́orico Deudores (modelo de valores de referencia).xls”.
+
+## Solución
+Para el ejercicio se hizo uso de los datos en el archivo sugerido, únicamente con el cambio de ser en formato .csv
+
+Se utilizaron dos librerías: rootSolve, para el cálculo los ceros de la función normal bivariada, y mvtnorm para la implementación de la función bivariada normal.
+
+```{r}
+library(rootSolve) #Se carga la librería para encontrar las raices de una función multivariada
+library(mvtnorm) #Se carga la librería para la distribución normal bivariada
+```
+
+Posteriormente se leen los datos y se extraen las columnas de nuestro interés.
+
+```{r}
+datos = read.csv("C:/ICS/9.Optativas/RiesgosFinancieros/HistoricoDeudores.csv") #Se lee el archivo con los datos a analizar
+D_t = datos$D_t
+N_t = datos$N_t
+```
+
+Se calcula la probabilidad media de incumplimiento.
+```{r}
+PMI = mean(D_t/N_t)
+```
+
+Se calcula la probabilidad conjunta de incumplimiento.
+```{r}
+PCI_t = (D_t*(D_t-1))/(N_t*(N_t-1))
+PCI = mean(PCI_t) 
+```
+
+Se calcula el valor crítico de referencia
+```{r}
+VCR = qnorm(PMI)
+```
+Se hace una estimación de la correlación de activos
+```{r}
+correl = 0.15
+```
+
+Se crea una función que reciba el valor de la correlación y calcule la funcion 
+de distribución acumulada de una normal estándar bivariada
+```{r}
+G <- function(x){
+  sigma = matrix(c(1,x,x,1), nrow = 2)
+  pmvnorm(lower = c(-Inf, -Inf), upper=c(VCR,VCR), mean=rep(0, 2), sigma=sigma)/PCI-1
+}  
+
+```
+Se calcula la raíz de la función, la cual representa la correlación de activos
+```{r}
+raiz = multiroot(G,correl,positive = TRUE,  maxiter=10000) 
+CA = raiz$root 
+```
+
+## En resumen
+```{r}
+print("La probabilidad media de incumplimiento es: ")
+print(PMI)
+print("La probabilidad conjunta de incumplimiento es: ")
+print(PCI)
+print("El valor crítico de referencia es: ")
+print(VCR)
+print("La correlación de activos es: ")
+print(CA)
+```
