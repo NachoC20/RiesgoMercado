@@ -1,0 +1,123 @@
+---
+title: "Tarea de Riesgo de Crédito"
+output:
+  word_document: default
+  html_document: default
+---
+
+## Ejercicio 3
+
+Usando la tabla del archivo “Ejer anal discr.xls” (hoja base) que est ́a en la página del curso, ajustar
+una regresión logística con las variables más significativas (pueden hacer uso de la hoja frecuencia del archivo “logit y disc datos.xls” y utilizando la prueba de Wald para cada variable), pueden usar el archivo “logitprobit.ipynb” para hacer el an ́alisis, obviamente entregar los coeficientes de regresión, la gráfica de datos observados y ajustados, el nivel de significancia (Devianza) del modelo, es decir la prueba de hipótesis de que la Devianza se distribuye como una $X^2_{n−(m+1)}$, y la interpretación de las variables.
+
+### Solución:
+Para realizar el ejercicio, primero descargamos el archivo csv en donde se encuentra la base de datos del archivo “Ejer anal discr.xls” (hoja base) e inicializamos las siguientes variables.
+
+```{r}
+library(dplyr)
+incump = "C:\\Users\\juanm\\OneDrive\\Documentos\\Tareas septimo semestre\\Admin. Riesgos\\BD-Logit.csv"
+data=read.csv(incump, sep=",", quote="/")
+print(head(data))
+
+n<-nrow(data)-1
+m=ncol(data)
+x=data[,3:m]
+y=data[,2]
+xext=as.matrix(cbind(1,x))
+
+```
+
+Realizamos un ajuste de los datos, usando la función glm.
+```{r}
+ylogr = glm(Incump ~  Liquid  +  Apalanc  +  AñosCl  +    Rentab  +Bancos  +  PCP_CT   +  Gop_SD + RetrTMP + PLP_PT + IFAudit  +UO_VN + AñoOper , family=binomial("logit"), data = data)
+summary(ylogr)
+
+```
+Entonces, los coeficientes de regresión son:
+```{r}
+print(ylogr$coef)
+```
+Replicamos la devianza.
+```{r}
+Llogit=log(prod(((1+exp(-xext%*%as.matrix(ylogr$coef)))^(-1))^y*(1-(1+exp(-xext%*%as.matrix(ylogr$coef)))^(-1))^(1-y)))
+DLogit=-2*Llogit
+
+print(paste("Devianza replicada = ",DLogit))
+
+print(paste("Devianza del modelo lineal generalizado = ", ylogr$dev))
+```
+Realizamos la matriz de confusión.
+```{r}
+ptol=0.5
+yest=(1+exp(-xext%*%as.matrix(ylogr$coef)))^(-1)
+
+print("Matriz de confusión")
+print(table(y,ifelse(yest<0.5,0,1)))
+```
+Generamos la gráfica de datos observados y ajustados.
+```{r}
+plot(y,type="l", lty=2, xlab="Observaciones",
+  ylab="Probabilidad", main="Regresión Logística")
+points(yest, lwd=2, col="red")
+```
+Finalmente, utilizamos la devianza residual para observar si el modelo de regresión logística proporciona un ajuste adecuado para los datos. Esto es posible porque la desviación viene dada por el valor de chi-cuadrado en ciertos grados de libertad. Para probar la significancia, podemos encontrar el p-value asociado.
+
+```{r}
+pvalue = 1 - pchisq(5.9299, 234)
+pvalue
+```
+Con base a los resultados obtenidos, nos damos cuenta que no ha evidencia suficiente para rechazar la hipotésis nula, además que no hay variables que sean significativas para predecir el incumplimiento de los clientes.
+
+Es por eso, que se generará un nuevo modelo utilizando el regresión multiple para obtener mejores resultados.
+
+```{r}
+ylogr = glm(Incump ~  Liquid  +  Apalanc  +  AñosCl  +    Rentab  +Bancos  +  PCP_CT   +  Gop_SD + RetrTMP + PLP_PT + IFAudit  +UO_VN + AñoOper, data = data)
+summary(ylogr)
+```
+Observemos que en este caso, si encontramos variables significativas. El modelo muestra que el apalancamiento, la liquidez, los años de ser cliente, la rentabilidad, el número de bancos, el pasivo corto plazo a capital de trabajo, la Generación Operativa y los años operando son significativos para el incumplimiento de los clientes.
+
+Tomando en cuenta las variables mencionadas, generamos un modelo donde unicamente se encuentren estas variables con el fin de dar una mayor presición a nuestro modelo.
+
+```{r}
+data2 = data %>%
+  select(Apalanc, AñosCl, Rentab, PCP_CT, Gop_SD)
+xext2=as.matrix(cbind(1,data2))
+ylogr2 = glm(Incump ~ Apalanc  +  AñosCl  +    Rentab  +  PCP_CT   +  Gop_SD, data = data)
+summary(ylogr2)
+
+```
+Entonces, los coeficientes de regresión son:
+```{r}
+print(ylogr2$coef)
+```
+Replicamos la devianza.
+```{r}
+Llogit2=log(prod(((1+exp(-xext2%*%as.matrix(ylogr2$coef)))^(-1))^y*(1-(1+exp(-xext2%*%as.matrix(ylogr2$coef)))^(-1))^(1-y)))
+DLogit2=-2*Llogit2
+
+print(paste("Devianza replicada = ",DLogit2))
+
+print(paste("Devianza del modelo lineal generalizado = ", ylogr2$dev))
+```
+Realizamos la matriz de confusión.
+```{r}
+ptol=0.5
+yest2=(1+exp(-xext2%*%as.matrix(ylogr2$coef)))^(-1)
+
+print("Matriz de confusión")
+print(table(y,ifelse(yest2<0.5,0,1)))
+```
+Generamos la gráfica de datos observados y ajustados.
+```{r}
+plot(y,type="l", lty=2, xlab="Observaciones",
+  ylab="Probabilidad", main="Regresión Multinomial")
+points(yest2, lwd=2, col="red")
+
+```
+Obtenemos la precisión de nuestro modelo utilizando la diagonal de nuestra matriz de confusión.
+```{r}
+(48+121)/(48+121+78)
+pvalue2 = 1 - pchisq(6.3116, 241)
+pvalue2
+```
+Entonces con base a este modelo, podemos observar que se tienen varias variables que son significativas para predecir el incumplimiento de los clientes y que se tiene una precisión de 0.6639676 donde no hay evidencia suficiente para rechazar el modelo.
